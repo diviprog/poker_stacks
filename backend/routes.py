@@ -1,27 +1,35 @@
-from fastapi import FastAPI
-from models import Player, Game
+from typing import Dict, List
+from fastapi import APIRouter
+from models import Game, Player
+import uuid
 
-app = FastAPI()
+router = APIRouter()
 
-# In-memory storage for simplicity
-games = {}
+# Store active games
+games: Dict[str, Game] = {}
 
-@app.post("/create-game/")
-def create_game(player_names: list[str]):
-    game_id = len(games) + 1
-    players = [Player(name=name, stack=1000) for name in player_names]
-    games[game_id] = {"players": players}
-    return {"game_id": game_id, "players": players}
+@router.get("/")
+def main() -> Dict[str, str]:
+    return {"msg":"Successfully run"}
 
-@app.put("/update-stack/")
-def update_stack(game_id: int, player_name: str, change: int):
+@router.post("/create-game/")
+def create_game(player_names: List[str]) -> Dict[str, str]:
+    game_id = str(uuid.uuid4())
+    players = [Player(id=i+1, position="Player", stack="1000", active=True) for i, name in enumerate(player_names)]
+
+    new_game = Game(players=players)
+    games[game_id] = new_game
+
+    return {"game_id": game_id, "message": "Game created successfully"}
+
+@router.get('/get-game/{game_id}')
+def get_game(game_id: str) -> Dict[str, dict]:
     game = games.get(game_id)
     if not game:
         return {"error": "Game not found"}
+    
+    return {"game_id": game_id, "game_data": game.dict()}
 
-    for player in game["players"]:
-        if player.name == player_name:
-            player.stack += change
-            return {"message": "Stack updated", "player": player}
-
-    return {"error": "Player not found"}
+@router.get('/show-active-games/')
+def get_all_games() -> Dict[str, Game]:
+    return games
