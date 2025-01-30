@@ -1,12 +1,18 @@
-from typing import List, Dict
+from sqlalchemy import Column, Integer, String, Boolean, ForeignKey # type: ignore
+from sqlalchemy.orm import relationship # type: ignore
+from database import Base
 
-from pydantic import BaseModel
+class PlayerDB(Base):
+    __tablename__ = "players"
 
-class Player(BaseModel):
-    id: int
-    position: str
-    stack: str
-    active: bool
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String, index=True)
+    stack = Column(Integer, default=1000)
+    active = Column(Boolean, default=True)
+    game_id = Column(String, ForeignKey("games.id"))
 
-class Game(BaseModel):
-    players: List[Player]
+class GameDB(Base):
+    __tablename__ = "games"
+
+    id = Column(String, primary_key=True, index=True)
+    players = relationship("PlayerDB", backref="game")
