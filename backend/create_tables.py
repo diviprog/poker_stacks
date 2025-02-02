@@ -1,7 +1,12 @@
 # create_tables.py
-from database import Base, engine
-from models import GameDB, PlayerDB  # Import your models
+import sys
+import os
 
+# ✅ Ensure `backend/` is in the Python module path
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+
+from backend.database import Base, engine  # Use absolute imports
+from backend.models import GameDB, PlayerDB  # Use absolute imports
 def init_db():
     """Initialize the database by creating all tables"""
     try:

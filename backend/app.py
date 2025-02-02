@@ -1,5 +1,5 @@
 from fastapi import FastAPI # type: ignore
-from routes import router
+from backend.routes import router
 
 app = FastAPI()
 
