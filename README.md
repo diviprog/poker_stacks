@@ -160,16 +160,11 @@ docker run -p 8000:8000 poker-game-api
 * Betting logic
 * Game state progression
 
-### 🔄 Phase 2: Game Logic
-* Card dealing implementation
-* Hand evaluation using Treys
-* Winner determination
-
-### 📱 Phase 3: Frontend Development
+### 📱 Phase 2: Frontend Development
 * React.js user interface
 * Real-time updates via WebSockets
 
-### 🚀 Phase 4: Production Features
+### 🚀 Phase 3: Production Features
 * Multiplayer support
 * Production deployment
 * PostgreSQL integration

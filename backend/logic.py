@@ -7,6 +7,8 @@ positions = {8:['SB','BB','UTG','+1','LJ','HJ','CO','D'],
              2:['D/SB','BB']
              }
 
+GAME_STATES = ["pre-flop", "flop", "turn", "river", "showdown"]
+
 def update_positions(player_positions: dict) -> dict:
     """Rotates player positions for the next hand.
 
@@ -22,15 +24,30 @@ def update_positions(player_positions: dict) -> dict:
     if num_players not in positions:
         return {"error": "Invalid number of players"}
 
+    # Ensure all players have valid positions before sorting
+    if any(pos is None for pos in player_positions.values()):
+        return {"error": "Player positions are not set"}
+
     # Sort players by their current positions (ensuring a consistent rotation order)
-    sorted_players = sorted(player_positions.items(), key=lambda x: x[1])  # Sort by position name
+    sorted_players = sorted(player_positions.items(), key=lambda x: positions[num_players].index(x[1]))
 
-    # Get new positions from `positions` dictionary
-    new_positions = positions[num_players]
+    # Rotate positions
+    rotated_positions = {
+        p_id: positions[num_players][(i + 1) % num_players]
+        for i, (p_id, _) in enumerate(sorted_players)
+    }
 
-    # Assign new positions in a rotated manner
-    updated_positions = {}
-    for i, (player_id, _) in enumerate(sorted_players):
-        updated_positions[player_id] = new_positions[i]
+    return rotated_positions
 
-    return updated_positions
+def get_next_state(current_state: str) -> str:
+    """Returns the next state in the game"""
+    if current_state not in GAME_STATES:
+        return "error"
+    
+    current_index = GAME_STATES.index(current_state)
+    
+    # If already in showdown, stay there
+    if current_index == len(GAME_STATES) - 1:
+        return "showdown"
+
+    return GAME_STATES[current_index + 1]

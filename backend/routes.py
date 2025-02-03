@@ -3,7 +3,7 @@ from fastapi import APIRouter, Depends, HTTPException # type: ignore
 from sqlalchemy.orm import Session # type: ignore
 from backend.models import GameDB, PlayerDB
 from backend.database import get_db
-from backend.logic import update_positions
+from backend.logic import update_positions, get_next_state, positions
 import uuid
 from pydantic import BaseModel # type: ignore
 
@@ -21,6 +21,9 @@ class CheckRequest(BaseModel):
 class NextHandRequest(BaseModel):
     game_id: str
 
+class NextStageRequest(BaseModel):
+    game_id: str
+
 @router.get("/")
 def main() -> Dict[str, str]:
     return {"msg": "Successfully run"}
@@ -34,13 +37,25 @@ def create_game(player_data: PlayerInput, db: Session = Depends(get_db)) -> Dict
     """Creates a new game and stores it in the database"""
 
     game_id = str(uuid.uuid4())
-    new_game = GameDB(id=game_id)
+    new_game = GameDB(id=game_id, game_state="pre-flop")
     db.add(new_game)
     db.commit()
 
+    num_players = len(player_data.players)
+    if num_players not in positions:
+        raise HTTPException(status_code=400, detail="Invalid number of players for a game.")
+
+    position_list = positions[num_players]
+
     # Add players
-    for name, stack in player_data.players.items():
-        player = PlayerDB(name=name, stack=stack, active=True, game_id=game_id)
+    for i, (name, stack) in enumerate(player_data.players.items()):
+        player = PlayerDB(
+            name=name,
+            stack=stack,
+            active=True,
+            game_id=game_id,
+            position=position_list[i]  # ✅ Now correctly aligned with zero-based index
+        )
         db.add(player)
     
     db.commit()
@@ -57,6 +72,9 @@ def get_game(game_id: str, db: Session = Depends(get_db)) -> Dict[str, dict]:
     players = db.query(PlayerDB).filter(PlayerDB.game_id == game_id).all()
     return {
         "game_id": game_id,
+        "state": game.game_state,
+        "pot": game.pot,
+        "current_bet": game.current_bet,
         "players": [{"id": p.id, "name": p.name, "stack": p.stack, "active": p.active} for p in players]
     }
 
@@ -69,18 +87,14 @@ def get_all_games(db: Session = Depends(get_db)) -> Dict[str, list]:
 
 @router.delete("/end-session/{game_id}")
 def end_game_session(game_id: str, db: Session = Depends(get_db)) -> Dict[str, str]:
-    """Deletes a game and all associated players from the database"""
+    """Deletes a game and all associated players"""
     
     game = db.query(GameDB).filter(GameDB.id == game_id).first()
     if not game:
-        return {"error": "Game not found"}
+        raise HTTPException(status_code=404, detail="Game not found")
 
-    # Delete all players in the game
     db.query(PlayerDB).filter(PlayerDB.game_id == game_id).delete()
-
-    # Delete the game itself
-    db.query(GameDB).filter(GameDB.id == game_id).delete()
-
+    db.delete(game)  # ✅ Delete game directly
     db.commit()
 
     return {"message": f"Game {game_id} and all associated players have been deleted"}
@@ -96,6 +110,9 @@ def check(request: CheckRequest, db: Session = Depends(get_db)):
 
     if not player or not game:
         raise HTTPException(status_code=404, detail="Player or Game not found")
+    
+    if not player.active:
+        raise HTTPException(status_code=400, detail="Player has already folded")
 
     # 🚀 Ensure a check is only possible when there is NO active bet
     if game.current_bet > 0 and player.bet_amount < game.current_bet:
@@ -118,8 +135,8 @@ def place_bet(request: BetRequest, db: Session = Depends(get_db)):
     if player.stack < request.amount:
         raise HTTPException(status_code=400, detail="Insufficient stack")
 
-    if request.amount < game.current_bet:
-        raise HTTPException(status_code=400, detail=f"Bet must be at least {game.current_bet}")
+    if request.amount < game.current_bet + game.raise_size:
+        raise HTTPException(status_code=400, detail=f"Bet must be at least {game.current_bet + game.raise_size}")
 
     # Deduct stack and update pot
     player.stack -= request.amount
@@ -149,11 +166,8 @@ def place_raise(game_id: str, player_id: int, raise_amount: int, db: Session = D
     if player.stack < raise_amount:
         raise HTTPException(status_code=400, detail="Insufficient stack to raise")
 
-    # Determine the minimum raise amount
-    minimum_raise = game.current_bet + (game.raise_size if game.raise_size > 0 else game.current_bet)
-
-    if raise_amount < minimum_raise:
-        raise HTTPException(status_code=400, detail=f"Raise must be at least {minimum_raise}")
+    if raise_amount < game.current_bet + game.raise_size:
+        raise HTTPException(status_code=400, detail=f"Raise must be at least {game.current_bet + game.raise_size}")
 
     # Deduct stack and update pot
     difference = raise_amount - player.bet_amount  # Only deduct the additional amount
@@ -178,6 +192,9 @@ def fold(game_id: str, player_id: int, db: Session = Depends(get_db)):
     if not player:
         raise HTTPException(status_code=404, detail="Player not found")
 
+    if not player.active:
+        raise HTTPException(status_code=400, detail="Player has already folded")
+
     player.active = False  # Mark player as folded
     db.commit()
     return {"message": f"Player {player_id} has folded"}
@@ -195,7 +212,7 @@ def call_bet(game_id: str, player_id: int, db: Session = Depends(get_db)):
     call_amount = game.current_bet - player.bet_amount
 
     if player.stack < call_amount:
-        raise HTTPException(status_code=400, detail="Insufficient stack to call")
+        call_amount = player.stack  # Player goes all-in
 
     player.stack -= call_amount
     game.pot += call_amount
@@ -213,6 +230,9 @@ def all_in(game_id: str, player_id: int, db: Session = Depends(get_db)):
 
     if not player or not game:
         raise HTTPException(status_code=404, detail="Player or Game not found")
+    
+    if player.bet_amount == player.stack:
+        raise HTTPException(status_code=400, detail="Player is already all-in")
 
     all_in_amount = player.stack
 
@@ -242,9 +262,31 @@ def next_round(game_id: str, db: Session = Depends(get_db)):
         player.bet_amount = 0
 
     game.current_bet = 0  # Reset the current bet
+    game.raise_size = 0
 
     db.commit()
     return {"message": "Next betting round has started"}
+
+@router.put("/next_stage/")
+def next_stage(request:NextStageRequest, db: Session = Depends(get_db)):
+    """Moves the game to the next stage (Flop, Turn, River, Showdown)"""
+
+    game = db.query(GameDB).filter(GameDB.id == request.game_id).first()
+    if not game:
+        raise HTTPException(status_code=404, detail="Game not found")
+
+    if game.game_state == "showdown":
+        raise HTTPException(status_code=400, detail="Game is already at showdown")
+    
+    new_state = get_next_state(game.game_state)
+
+    if new_state == "error":
+        raise HTTPException(status_code=400, detail="Invalid game state")
+
+    game.game_state = new_state
+    db.commit()
+
+    return {"message": f"Game moved to {new_state}", "new_state": new_state}
 
 @router.put("/next_hand/")
 def next_hand(request:NextHandRequest, db: Session = Depends(get_db)):
@@ -272,6 +314,12 @@ def next_hand(request:NextHandRequest, db: Session = Depends(get_db)):
     # Update player positions in the database
     for player in players:
         player.position = updated_positions[player.id]
+    
+    game.game_stage = "pre-flop"
+    game.pot = 0
+    game.current_bet = 0
+    for player in players:
+        player.bet_amount = 0
 
     db.commit()
     

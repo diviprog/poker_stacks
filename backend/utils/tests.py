@@ -93,6 +93,13 @@ def test_next_round():
     assert response.status_code == 200
     assert response.json()["message"] == "Next betting round has started"
 
+def test_next_stage():
+    """Test advancing game state through Flop, Turn, River, and Showdown"""
+
+    for expected_state in ["flop", "turn", "river", "showdown"]:
+        response = client.put("/next_stage/", json={"game_id": game_id})
+        assert response.status_code == 200
+        assert response.json()["new_state"] == expected_state
 
 def test_next_hand():
     """Test position rotation after each hand"""
