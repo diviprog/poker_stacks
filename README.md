@@ -1,7 +1,5 @@
 # poker_stacks
 
-Here’s a comprehensive README.md for your Poker Game API project, covering setup, usage, and API documentation.
-
 🃏 Poker Game API
 
 A FastAPI-powered backend for simulating a poker game, including betting, player management, game state progression, and winner determination.
@@ -174,5 +172,3 @@ docker run -p 8000:8000 poker-game-api
 📜 License
 
 MIT License.
-
-🔥 This README gives a full overview of your Poker Game API! Let me know if you need modifications. 🚀♠️
