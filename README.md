@@ -1,174 +1,179 @@
-# poker_stacks
+# Poker Game API
 
-🃏 Poker Game API
+A FastAPI-powered backend service for simulating poker games with comprehensive player management, betting systems, and game state tracking.
 
-A FastAPI-powered backend for simulating a poker game, including betting, player management, game state progression, and winner determination.
+## Features
 
-🚀 Features
-	•	🏆 Player Management (Create & track player stacks)
-	•	🎲 Betting System (Raise, Call, Fold, Check, All-In)
-	•	🔄 Game State Progression (Pre-Flop → Flop → Turn → River → Showdown)
-	•	🃏 Community Cards Handling
-	•	🎯 Hand Evaluation (Upcoming)
+* **Player Management**: Create and track player stacks, handle player actions
+* **Comprehensive Betting System**: Support for raise, call, fold, check, and all-in actions
+* **Game State Management**: Handle progression through pre-flop, flop, turn, river, and showdown
+* **Community Cards**: Manage and deal community cards
+* **Hand Evaluation**: Determine winning hands (upcoming feature)
 
-📦 Tech Stack
+## Technology Stack
 
-Technology	Usage
-Python	Main programming language
-FastAPI	Backend API framework
-SQLAlchemy	Database ORM
-SQLite/PostgreSQL	Database
-Pydantic	Data validation
-Trey’s Poker Library	Hand evaluation (upcoming)
-React.js (Frontend - Upcoming)	UI for player interaction
+| Component | Technology |
+|-----------|------------|
+| Backend | Python, FastAPI |
+| Database | SQLAlchemy (ORM), SQLite/PostgreSQL |
+| Data Validation | Pydantic |
+| Hand Evaluation | Treys Poker Library (upcoming) |
+| Frontend | React.js (upcoming) |
 
-📂 Project Structure
+## Project Structure
 
+```
 poker_stacks/
 │── backend/
 │   ├── app.py               # FastAPI application
-│   ├── database.py          # Database setup (SQLAlchemy)
+│   ├── database.py          # Database setup
 │   ├── models.py            # Database models
 │   ├── routes.py            # API routes
-│   ├── logic.py             # Game logic (betting, state updates)
-│   ├── create_tables.py     # Initializes the database
+│   ├── logic.py             # Game logic
+│   ├── create_tables.py     # Database initialization
 │   ├── utils/
-│   │   ├── tests.py         # Unit tests for API endpoints
+│   │   ├── tests.py         # Unit tests
 │   ├── __init__.py
-│── frontend/ (Upcoming)
-│── README.md                # Project documentation
-│── requirements.txt         # Python dependencies
+│── frontend/               # Upcoming
+│── README.md
+│── requirements.txt
 │── .gitignore
-│── alembic/ (Optional for migrations)
+│── alembic/                # Optional for migrations
+```
 
-🔧 Setup Instructions
+## Installation
 
-1️⃣ Clone the Repository
+### Prerequisites
+* Python 3.x
+* pip package manager
+* Virtual environment (recommended)
 
+### Setup Steps
+
+1. Clone the repository
+```bash
 git clone https://github.com/your-username/poker_stacks.git
 cd poker_stacks
+```
 
-2️⃣ Create a Virtual Environment
-
+2. Create and activate virtual environment
+```bash
 python3 -m venv venv
-source venv/bin/activate  # On Windows use `venv\Scripts\activate`
+source venv/bin/activate  # Windows: venv\Scripts\activate
+```
 
-3️⃣ Install Dependencies
-
+3. Install dependencies
+```bash
 pip install -r requirements.txt
+```
 
-4️⃣ Setup the Database
-
+4. Initialize database
+```bash
 python3 -m backend.create_tables
-
-If using Alembic for migrations:
-
+# If using Alembic:
 alembic upgrade head
+```
 
-5️⃣ Run the API Server
-
+5. Start the server
+```bash
 uvicorn backend.app:app --reload
+```
 
-✅ API will run at: http://127.0.0.1:8000
+The API will be available at `http://127.0.0.1:8000`
 
-🔍 API Endpoints
+## API Documentation
 
-📌 1. Game Management
+### Game Management
 
-Method	Endpoint	Description
-POST	/create-game/	Create a new poker game
-PUT	/next_hand/	Rotate player positions for the next hand
-PUT	/next_stage/	Move game state (Pre-Flop → Flop → Turn → River → Showdown)
-GET	/get-game/{game_id}	Retrieve game details
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/create-game/` | Create a new poker game |
+| PUT | `/next_hand/` | Rotate player positions |
+| PUT | `/next_stage/` | Progress game state |
+| GET | `/get-game/{game_id}` | Get game details |
 
-Example Request: Create a Game
+Example: Creating a game
+```bash
+curl -X POST "http://127.0.0.1:8000/create-game/" \
+     -H "Content-Type: application/json" \
+     -d '{"players": {"Alice": 1000, "Bob": 1000, "Charlie": 1000}}'
+```
 
-curl -X POST "http://127.0.0.1:8000/create-game/" -H "Content-Type: application/json" \
-    -d '{"players": {"Alice": 1000, "Bob": 1000, "Charlie": 1000}}'
+### Betting Actions
 
-📌 2. Betting Actions
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| PUT | `/bet/` | Place a bet |
+| PUT | `/raise/` | Raise existing bet |
+| PUT | `/call/` | Call current bet |
+| PUT | `/check/` | Check (no bet) |
+| PUT | `/fold/` | Fold hand |
+| PUT | `/all-in/` | Go all-in |
 
-Method	Endpoint	Description
-PUT	/bet/	Player places a bet
-PUT	/raise/	Player raises the bet
-PUT	/call/	Player calls the bet
-PUT	/check/	Player checks (no bet)
-PUT	/fold/	Player folds
-PUT	/all-in/	Player goes all-in
+Example: Player betting
+```bash
+curl -X PUT "http://127.0.0.1:8000/bet/" \
+     -H "Content-Type: application/json" \
+     -d '{"game_id": "1234", "player_id": 1, "amount": 100}'
+```
 
-Example Request: Player Bets
+## Testing
 
-curl -X PUT "http://127.0.0.1:8000/bet/" -H "Content-Type: application/json" \
-    -d '{"game_id": "1234", "player_id": 1, "amount": 100}'
-
-📌 3. Game Progression
-
-Method	Endpoint	Description
-PUT	/next_hand/	Rotate player positions
-PUT	/next_stage/	Move game state to the next phase
-
-Example Request: Advance Game State
-
-curl -X PUT "http://127.0.0.1:8000/next_stage/" -H "Content-Type: application/json" \
-    -d '{"game_id": "1234"}'
-
-🛠 Running Tests
-
-Run all tests using:
-
+Run the test suite:
+```bash
 pytest backend/utils/tests.py -v
+```
 
-✅ Tests Included:
-	•	Game creation (test_create_game)
-	•	Betting (test_bet, test_raise, test_call, test_all_in)
-	•	Player actions (test_check, test_fold)
-	•	Game progression (test_next_hand, test_next_stage)
+Test coverage includes:
+* Game creation and management
+* Betting actions
+* Player actions
+* Game state progression
 
-🛠 Deployment
+## Deployment Options
 
-🔹 Backend
-	•	Option 1: Deploy on Heroku
+### Backend Deployment
 
+1. **Heroku**
+```bash
 git push heroku main
+```
 
-	•	Option 2: Deploy on Render
+2. **Render**
+* Configure `render.yaml` for service definition
 
-render.yaml  # Define service for FastAPI
-
-	•	Option 3: Docker Deployment
-
+3. **Docker**
+```bash
 docker build -t poker-game-api .
 docker run -p 8000:8000 poker-game-api
+```
 
-🔹 Database
-	•	Use SQLite locally (games.db).
-	•	Use PostgreSQL for production (Supabase, Heroku).
+### Database Options
+* Development: SQLite
+* Production: PostgreSQL (via Supabase or Heroku)
 
-🔹 Frontend (Upcoming)
-	•	React.js for user interface.
-	•	WebSockets for real-time updates.
+## Development Roadmap
 
-📌 Roadmap
+### ✅ Phase 1: Core Backend
+* Game creation and management
+* Player management
+* Betting logic
+* Game state progression
 
-✅ Phase 1: Backend
-	•	Game creation
-	•	Player management
-	•	Betting logic
-	•	Game state progression
+### 🔄 Phase 2: Game Logic
+* Card dealing implementation
+* Hand evaluation using Treys
+* Winner determination
 
-🔜 Phase 2: Hand Evaluation & Community Cards
-	•	Implement card dealing (Flop, Turn, River)
-	•	Use Treys Poker Evaluator to determine the winner
+### 📱 Phase 3: Frontend Development
+* React.js user interface
+* Real-time updates via WebSockets
 
-🔜 Phase 3: Frontend UI
-	•	React.js Interface for betting & game tracking
-	•	WebSockets for real-time updates
+### 🚀 Phase 4: Production Features
+* Multiplayer support
+* Production deployment
+* PostgreSQL integration
 
-🔜 Phase 4: Multiplayer & Deployment
-	•	Multiplayer functionality (real-time WebSockets)
-	•	Production Deployment on Heroku / Render
-	•	PostgreSQL Integration
+## License
 
-📜 License
-
-MIT License.
+This project is licensed under the MIT License.
